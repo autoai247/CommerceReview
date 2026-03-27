@@ -21,6 +21,9 @@ openai>=1.50.0
 # Browser automation — playwright는 추후 Dockerfile에서 별도 설치
 # playwright==1.49.0
 
+# TTS (한국어 음성)
+edge-tts==6.1.12
+
 # Video processing / Subtitle
 pysrt==1.1.2
 

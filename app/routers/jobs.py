@@ -55,10 +55,17 @@ async def _get_job_or_404(job_id: int, db: AsyncSession) -> Job:
 # ──────────────────────────── Pipeline ────────────────────────────
 
 async def _run_pipeline(job_id: int):
-    """백그라운드 파이프라인: download → transcribe → translate → render"""
+    """백그라운드 파이프라인:
+    download → STT(중국어) → 번역 → 대본 재작성 → TTS(한국어) → 영상 합성
+    """
+    import logging
+    log = logging.getLogger(__name__)
+
     from app.services.extractor.douyin import download_douyin
     from app.services.video.whisper_stt import transcribe
     from app.services.translator.gpt_translator import translate_srt
+    from app.services.translator.script_rewriter import rewrite_script
+    from app.services.video.tts import generate_tts, extract_text_from_srt
     from app.services.video.renderer import burn_subtitles
 
     async with async_session() as db:
@@ -67,7 +74,7 @@ async def _run_pipeline(job_id: int):
         if not job:
             return
 
-        # API 키 가져오기
+        # API 키
         api_key = ""
         key_result = await db.execute(
             select(ApiKey).where(ApiKey.service == "openai", ApiKey.is_active == True)
@@ -82,14 +89,14 @@ async def _run_pipeline(job_id: int):
         os.makedirs(job_dir, exist_ok=True)
 
         try:
-            # ── Step 1: Download ──
+            # ── Step 1: 영상 다운로드 ──
             job.status = "downloading"
             await db.commit()
+            log.info(f"[Job {job_id}] Step 1: 다운로드")
 
             if job.platform == "douyin":
                 dl_result = await download_douyin(job.source_url, job_dir)
             else:
-                # 다른 플랫폼은 yt-dlp fallback
                 dl_result = await _download_ytdlp(job.source_url, job_dir)
 
             job.video_path = dl_result["video_path"]
@@ -98,44 +105,106 @@ async def _run_pipeline(job_id: int):
             job.duration_sec = dl_result.get("duration", 0)
             await db.commit()
 
-            # ── Step 2: Transcribe ──
+            # ── Step 2: 중국어 음성 → 자막 (STT) ──
             if not api_key:
                 raise RuntimeError("OpenAI API 키가 설정되지 않았습니다.")
 
             job.status = "transcribing"
             await db.commit()
+            log.info(f"[Job {job_id}] Step 2: STT (중국어)")
 
             srt_zh = await transcribe(job.video_path, api_key)
             job.subtitle_zh = srt_zh
             await db.commit()
 
-            # ── Step 3: Translate ──
+            # ── Step 3: 번역 (중→한 직역) ──
             job.status = "translating"
             await db.commit()
+            log.info(f"[Job {job_id}] Step 3: 번역")
 
-            srt_ko = await translate_srt(srt_zh, api_key)
+            srt_ko_raw = await translate_srt(srt_zh, api_key)
+            await db.commit()
+
+            # ── Step 4: 대본 재작성 (한국 시청자용) ──
+            log.info(f"[Job {job_id}] Step 4: 대본 재작성")
+
+            srt_ko = await rewrite_script(
+                translated_srt=srt_ko_raw,
+                api_key=api_key,
+                product_name=job.original_title or "",
+                coupang_link=job.coupang_affiliate_url or "",
+            )
             job.subtitle_ko = srt_ko
             await db.commit()
 
-            # ── Step 4: Render ──
+            # ── Step 5: 한국어 TTS 음성 생성 ──
             job.status = "rendering"
             await db.commit()
+            log.info(f"[Job {job_id}] Step 5: TTS + 렌더링")
 
+            narration_text = extract_text_from_srt(srt_ko)
+            tts_result = await generate_tts(
+                text=narration_text,
+                output_dir=job_dir,
+                voice="sunhi",
+            )
+            tts_audio = tts_result["audio_path"]
+
+            # ── Step 6: 최종 영상 합성 ──
+            # 원본 영상(음소거) + 한국어 TTS 음성 + 한국어 자막
             srt_path = os.path.join(job_dir, "subtitle_ko.srt")
             with open(srt_path, "w", encoding="utf-8") as f:
                 f.write(srt_ko)
 
             output_path = os.path.join(job_dir, "output.mp4")
-            await burn_subtitles(job.video_path, srt_path, output_path)
+            await _render_final(job.video_path, tts_audio, srt_path, output_path)
 
             job.output_path = output_path
             job.status = "done"
             await db.commit()
+            log.info(f"[Job {job_id}] 완료: {output_path}")
 
         except Exception as e:
+            log.error(f"[Job {job_id}] 파이프라인 실패: {e}", exc_info=True)
             job.status = "error"
             job.error_msg = str(e)[:1000]
             await db.commit()
+
+
+async def _render_final(video_path: str, audio_path: str, srt_path: str, output_path: str):
+    """원본 영상(음소거) + 한국어 TTS 음성 + 한국어 자막 = 최종 영상"""
+    import asyncio
+
+    # FFmpeg: 원본 비디오 + 새 오디오 + 자막 하드코딩
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", video_path,       # 원본 영상
+        "-i", audio_path,       # 한국어 TTS 음성
+        "-map", "0:v",          # 영상은 원본에서
+        "-map", "1:a",          # 오디오는 TTS에서
+        "-c:v", "libx264",
+        "-preset", "fast",
+        "-crf", "23",
+        "-c:a", "aac",
+        "-b:a", "128k",
+        "-vf", f"subtitles={srt_path}:force_style='FontName=Noto Sans CJK KR,FontSize=22,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,Outline=2,Bold=1,Alignment=2,MarginV=30'",
+        "-shortest",            # 짧은 쪽에 맞춤
+        "-movflags", "+faststart",
+        output_path,
+    ]
+
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    _, stderr = await proc.communicate()
+
+    if proc.returncode != 0:
+        raise RuntimeError(f"최종 렌더링 실패: {stderr.decode(errors='replace')[-500:]}")
+
+    if not os.path.exists(output_path) or os.path.getsize(output_path) < 10000:
+        raise RuntimeError("최종 영상 파일이 생성되지 않았습니다.")
 
 
 async def _download_ytdlp(url: str, output_dir: str) -> dict:
