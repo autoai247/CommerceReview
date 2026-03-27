@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.env
+data/temp/*
+data/downloads/*
+data/output/*
+!data/.gitkeep
+.playwright/

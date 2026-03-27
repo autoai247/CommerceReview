@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% set active_page = "new_job" %}
+
+{% block title %}새 작업 - 커머스리뷰{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold text-white">새 작업</h1>
+        <p class="text-gray-500 text-sm mt-1">중국 커머스 영상을 한국어로 번역합니다</p>
+    </div>
+
+    <div class="bg-gray-900 border border-gray-800/50 rounded-2xl p-8">
+        <form id="newJobForm">
+            <!-- URL Input -->
+            <div class="mb-6">
+                <label for="url" class="block text-sm font-medium text-gray-300 mb-2">영상 URL</label>
+                <input type="url" id="url" name="url"
+                       placeholder="더우인, 샤오홍슈, 1688 URL을 붙여넣으세요"
+                       class="w-full px-4 py-4 bg-gray-800 border border-gray-700 rounded-xl text-white text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition">
+
+                <!-- Platform detection -->
+                <div id="platformHint" class="mt-2 hidden">
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-medium" id="platformBadge"></span>
+                </div>
+            </div>
+
+            <!-- Divider -->
+            <div class="relative my-8">
+                <div class="absolute inset-0 flex items-center">
+                    <div class="w-full border-t border-gray-700"></div>
+                </div>
+                <div class="relative flex justify-center text-sm">
+                    <span class="px-3 bg-gray-900 text-gray-500">또는</span>
+                </div>
+            </div>
+
+            <!-- File Upload -->
+            <div class="mb-8">
+                <label class="block text-sm font-medium text-gray-300 mb-2">영상 파일 업로드</label>
+                <div id="dropZone"
+                     class="border-2 border-dashed border-gray-700 rounded-xl p-8 text-center cursor-pointer hover:border-violet-500/50 transition-colors">
+                    <svg class="w-10 h-10 text-gray-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                    </svg>
+                    <p class="text-gray-400 text-sm">클릭 또는 드래그하여 업로드</p>
+                    <p class="text-gray-600 text-xs mt-1">MP4, MOV (최대 500MB)</p>
+                    <input type="file" id="fileInput" name="file" accept="video/*" class="hidden">
+                </div>
+                <div id="fileInfo" class="hidden mt-2 flex items-center gap-2 text-sm text-violet-400">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    <span id="fileName"></span>
+                </div>
+            </div>
+
+            <!-- Submit -->
+            <button type="submit" id="submitBtn"
+                    class="w-full py-3.5 px-4 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 disabled:from-gray-700 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                영상 가져오기
+            </button>
+
+            <!-- Loading state -->
+            <div id="loadingState" class="hidden mt-4 text-center">
+                <div class="inline-flex items-center gap-2 text-sm text-gray-400">
+                    <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                    작업을 생성하고 있습니다...
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const urlInput = document.getElementById('url');
+    const platformHint = document.getElementById('platformHint');
+    const platformBadge = document.getElementById('platformBadge');
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileName = document.getElementById('fileName');
+    const form = document.getElementById('newJobForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const loadingState = document.getElementById('loadingState');
+
+    // Platform detection
+    urlInput.addEventListener('input', () => {
+        const platform = detectPlatform(urlInput.value);
+        if (platform) {
+            platformHint.classList.remove('hidden');
+            platformBadge.textContent = platform.label;
+            platformBadge.className = `inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-medium ${platform.cls}`;
+        } else {
+            platformHint.classList.add('hidden');
+        }
+    });
+
+    // File upload
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-violet-500/50'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-violet-500/50'));
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-violet-500/50');
+        if (e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            showFile(e.dataTransfer.files[0]);
+        }
+    });
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length) showFile(fileInput.files[0]);
+    });
+
+    function showFile(f) {
+        fileName.textContent = f.name;
+        fileInfo.classList.remove('hidden');
+    }
+
+    // Submit
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const url = urlInput.value.trim();
+        const file = fileInput.files[0];
+
+        if (!url && !file) {
+            alert('URL을 입력하거나 파일을 업로드하세요.');
+            return;
+        }
+
+        submitBtn.disabled = true;
+        loadingState.classList.remove('hidden');
+
+        try {
+            const formData = new FormData();
+            if (url) formData.append('url', url);
+            if (file) formData.append('file', file);
+
+            const resp = await fetch('/api/jobs', { method: 'POST', body: formData });
+            const data = await resp.json();
+
+            if (resp.ok) {
+                window.location.href = `/jobs/${data.id}`;
+            } else {
+                alert(data.detail || '작업 생성에 실패했습니다.');
+                submitBtn.disabled = false;
+                loadingState.classList.add('hidden');
+            }
+        } catch (err) {
+            alert('네트워크 오류가 발생했습니다.');
+            submitBtn.disabled = false;
+            loadingState.classList.add('hidden');
+        }
+    });
+</script>
+{% endblock %}

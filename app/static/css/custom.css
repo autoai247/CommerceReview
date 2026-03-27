@@ -1,0 +1,68 @@
+/* CommerceReview — Custom Styles */
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(139, 92, 246, 0.3);
+    border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(139, 92, 246, 0.5);
+}
+
+/* Selection */
+::selection {
+    background: rgba(139, 92, 246, 0.3);
+    color: #f3f4f6;
+}
+
+/* Textarea monospace styling */
+textarea.font-mono {
+    font-family: 'Cascadia Code', 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    tab-size: 4;
+}
+
+/* Smooth transitions */
+a, button {
+    transition: all 0.15s ease;
+}
+
+/* Video player rounded corners */
+video {
+    border-radius: 0;
+}
+
+/* Card hover lift effect */
+.group:hover {
+    transform: translateY(-1px);
+}
+
+/* Pipeline connector animation for active step */
+@keyframes pulse-glow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Drag-over state */
+#dropZone.drag-over {
+    border-color: rgba(139, 92, 246, 0.5);
+    background: rgba(139, 92, 246, 0.05);
+}
+
+/* Mobile sidebar overlay */
+@media (max-width: 767px) {
+    aside:not(.hidden) {
+        position: fixed;
+        z-index: 50;
+        width: 16rem;
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
+    }
+}
