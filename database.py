@@ -30,6 +30,12 @@ async def _auto_migrate():
         # (테이블, 컬럼, 타입)
         ("jobs", "thumbnail_url", "VARCHAR(500)"),
         ("jobs", "duration_sec", "FLOAT"),
+        ("jobs", "upload_youtube", "VARCHAR(50) DEFAULT 'none'"),
+        ("jobs", "upload_tiktok", "VARCHAR(50) DEFAULT 'none'"),
+        ("jobs", "upload_instagram", "VARCHAR(50) DEFAULT 'none'"),
+        ("jobs", "youtube_url", "VARCHAR(500)"),
+        ("jobs", "tiktok_url", "VARCHAR(500)"),
+        ("jobs", "instagram_url", "VARCHAR(500)"),
     ]
 
     async with engine.begin() as conn:

@@ -15,6 +15,11 @@ class ApiKeyPayload(BaseModel):
     openai_api_key: str
 
 
+class PlatformKeyPayload(BaseModel):
+    service: str  # youtube, tiktok, instagram
+    api_key: str
+
+
 @router.post("")
 async def save_settings(data: ApiKeyPayload, db: AsyncSession = Depends(get_db)):
     """OpenAI API 키 저장."""
@@ -54,6 +59,33 @@ async def get_settings(db: AsyncSession = Depends(get_db)):
             openai_key_masked = "****"
 
     return {"openai_api_key": openai_key_masked}
+
+
+@router.post("/platform")
+async def save_platform_key(data: PlatformKeyPayload, db: AsyncSession = Depends(get_db)):
+    """플랫폼별 인증 정보 저장 (YouTube, TikTok, Instagram)."""
+    service = data.service.strip().lower()
+    key_value = data.api_key.strip()
+
+    if service not in ("youtube", "tiktok", "instagram"):
+        raise HTTPException(status_code=400, detail="지원하지 않는 서비스입니다. (youtube, tiktok, instagram)")
+
+    if not key_value:
+        raise HTTPException(status_code=400, detail="인증 정보를 입력해주세요.")
+
+    # 기존 키가 있으면 업데이트, 없으면 생성
+    result = await db.execute(select(ApiKey).where(ApiKey.service == service))
+    existing = result.scalar_one_or_none()
+
+    if existing:
+        existing.api_key = key_value
+        existing.is_active = True
+    else:
+        new_key = ApiKey(service=service, api_key=key_value, is_active=True)
+        db.add(new_key)
+
+    await db.commit()
+    return {"ok": True}
 
 
 @router.post("/test")

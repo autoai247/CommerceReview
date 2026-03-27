@@ -7,12 +7,16 @@
 <div class="max-w-2xl mx-auto">
     <div class="mb-8">
         <h1 class="text-2xl font-bold text-white">API 키 설정</h1>
-        <p class="text-gray-500 text-sm mt-1">Whisper 음성인식 및 GPT 번역에 사용할 API 키를 설정합니다</p>
+        <p class="text-gray-500 text-sm mt-1">Whisper 음성인식, GPT 번역, 플랫폼 업로드에 사용할 API 키를 설정합니다</p>
     </div>
 
-    <div class="bg-gray-900 border border-gray-800/50 rounded-2xl p-8">
+    <!-- OpenAI -->
+    <div class="bg-gray-900 border border-gray-800/50 rounded-2xl p-8 mb-6">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-green-500"></span>
+            OpenAI
+        </h2>
         <form id="settingsForm">
-            <!-- OpenAI API Key -->
             <div class="mb-6">
                 <label for="openai_key" class="block text-sm font-medium text-gray-300 mb-2">
                     OpenAI API Key
@@ -32,7 +36,6 @@
                 <p class="mt-2 text-xs text-gray-500">Whisper STT + GPT-4o 번역에 사용됩니다</p>
             </div>
 
-            <!-- Actions -->
             <div class="flex gap-3">
                 <button type="submit"
                         class="flex-1 py-3 px-4 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white font-semibold rounded-xl transition-all duration-200">
@@ -47,9 +50,117 @@
                 </button>
             </div>
         </form>
-
-        <!-- Test result -->
         <div id="testResult" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+    </div>
+
+    <!-- YouTube OAuth2 -->
+    <div class="bg-gray-900 border border-gray-800/50 rounded-2xl p-8 mb-6">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-red-500"></span>
+            YouTube
+        </h2>
+        <form id="youtubeForm">
+            <div class="mb-4">
+                <label for="yt_client_id" class="block text-sm font-medium text-gray-300 mb-2">Client ID</label>
+                <input type="text" id="yt_client_id" placeholder="xxxxx.apps.googleusercontent.com"
+                       class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition">
+            </div>
+            <div class="mb-4">
+                <label for="yt_client_secret" class="block text-sm font-medium text-gray-300 mb-2">Client Secret</label>
+                <div class="relative">
+                    <input type="password" id="yt_client_secret" placeholder="GOCSPX-..."
+                           class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition pr-12">
+                    <button type="button" onclick="togglePassword(this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="mb-4">
+                <label for="yt_refresh_token" class="block text-sm font-medium text-gray-300 mb-2">Refresh Token</label>
+                <div class="relative">
+                    <input type="password" id="yt_refresh_token" placeholder="1//0..."
+                           class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition pr-12">
+                    <button type="button" onclick="togglePassword(this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <p class="mb-4 text-xs text-gray-500">Google Cloud Console에서 OAuth2 인증 정보를 생성하고, YouTube Data API v3를 활성화하세요.</p>
+            <button type="submit"
+                    class="w-full py-3 px-4 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-xl transition-colors">
+                YouTube 인증 정보 저장
+            </button>
+        </form>
+        <div id="youtubeResult" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+    </div>
+
+    <!-- TikTok -->
+    <div class="bg-gray-900 border border-gray-800/50 rounded-2xl p-8 mb-6">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-cyan-500"></span>
+            TikTok
+        </h2>
+        <form id="tiktokForm">
+            <div class="mb-4">
+                <label for="tiktok_token" class="block text-sm font-medium text-gray-300 mb-2">Access Token</label>
+                <div class="relative">
+                    <input type="password" id="tiktok_token" placeholder="act.xxxxx..."
+                           class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition pr-12">
+                    <button type="button" onclick="togglePassword(this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                    </button>
+                </div>
+                <p class="mt-2 text-xs text-gray-500">TikTok for Developers에서 Content Posting API 권한이 있는 access token을 발급하세요.</p>
+            </div>
+            <button type="submit"
+                    class="w-full py-3 px-4 bg-cyan-600 hover:bg-cyan-500 text-white font-semibold rounded-xl transition-colors">
+                TikTok 인증 정보 저장
+            </button>
+        </form>
+        <div id="tiktokResult" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+    </div>
+
+    <!-- Instagram -->
+    <div class="bg-gray-900 border border-gray-800/50 rounded-2xl p-8 mb-6">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-pink-500"></span>
+            Instagram
+        </h2>
+        <form id="instagramForm">
+            <div class="mb-4">
+                <label for="ig_access_token" class="block text-sm font-medium text-gray-300 mb-2">Access Token</label>
+                <div class="relative">
+                    <input type="password" id="ig_access_token" placeholder="IGQV..."
+                           class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition pr-12">
+                    <button type="button" onclick="togglePassword(this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="mb-4">
+                <label for="ig_user_id" class="block text-sm font-medium text-gray-300 mb-2">Instagram Business Account ID</label>
+                <input type="text" id="ig_user_id" placeholder="17841400000000000"
+                       class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition">
+                <p class="mt-2 text-xs text-gray-500">Meta for Developers에서 Instagram Graph API 권한과 비즈니스 계정 ID를 확인하세요.</p>
+            </div>
+            <button type="submit"
+                    class="w-full py-3 px-4 bg-pink-600 hover:bg-pink-500 text-white font-semibold rounded-xl transition-colors">
+                Instagram 인증 정보 저장
+            </button>
+        </form>
+        <div id="instagramResult" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
     </div>
 </div>
 {% endblock %}
@@ -107,8 +218,9 @@
         }
     }
 
-    function showResult(msg, type) {
-        const el = document.getElementById('testResult');
+    function showResult(msg, type, elementId = 'testResult') {
+        const el = document.getElementById(elementId);
+        if (!el) return;
         el.classList.remove('hidden', 'bg-green-500/10', 'border-green-500/20', 'text-green-400',
                            'bg-red-500/10', 'border-red-500/20', 'text-red-400',
                            'bg-blue-500/10', 'border-blue-500/20', 'text-blue-400');
@@ -124,5 +236,73 @@
         el.textContent = msg;
         el.classList.remove('hidden');
     }
+
+    // ── Platform credential save helpers ──
+    async function savePlatformKey(service, apiKeyValue, resultElementId) {
+        try {
+            const resp = await fetch('/api/settings/platform', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ service: service, api_key: apiKeyValue })
+            });
+            if (resp.ok) {
+                showResult('인증 정보가 저장되었습니다.', 'success', resultElementId);
+            } else {
+                const data = await resp.json();
+                showResult(data.detail || '저장에 실패했습니다.', 'error', resultElementId);
+            }
+        } catch (e) {
+            showResult('네트워크 오류', 'error', resultElementId);
+        }
+    }
+
+    // YouTube form
+    document.getElementById('youtubeForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const clientId = document.getElementById('yt_client_id').value.trim();
+        const clientSecret = document.getElementById('yt_client_secret').value.trim();
+        const refreshToken = document.getElementById('yt_refresh_token').value.trim();
+
+        if (!clientId || !clientSecret || !refreshToken) {
+            showResult('모든 필드를 입력해주세요.', 'error', 'youtubeResult');
+            return;
+        }
+
+        const creds = JSON.stringify({
+            client_id: clientId,
+            client_secret: clientSecret,
+            refresh_token: refreshToken
+        });
+        await savePlatformKey('youtube', creds, 'youtubeResult');
+    });
+
+    // TikTok form
+    document.getElementById('tiktokForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const token = document.getElementById('tiktok_token').value.trim();
+        if (!token) {
+            showResult('Access token을 입력해주세요.', 'error', 'tiktokResult');
+            return;
+        }
+        await savePlatformKey('tiktok', token, 'tiktokResult');
+    });
+
+    // Instagram form
+    document.getElementById('instagramForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const accessToken = document.getElementById('ig_access_token').value.trim();
+        const userId = document.getElementById('ig_user_id').value.trim();
+
+        if (!accessToken || !userId) {
+            showResult('Access token과 사용자 ID를 모두 입력해주세요.', 'error', 'instagramResult');
+            return;
+        }
+
+        const creds = JSON.stringify({
+            access_token: accessToken,
+            ig_user_id: userId
+        });
+        await savePlatformKey('instagram', creds, 'instagramResult');
+    });
 </script>
 {% endblock %}

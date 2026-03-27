@@ -11,6 +11,7 @@ from app.routers import auth as auth_router
 from app.routers import pages as pages_router
 from app.routers import jobs as jobs_router
 from app.routers import settings as settings_router
+from app.routers import upload as upload_router
 from app.routers.auth import require_auth
 
 
@@ -52,3 +53,4 @@ app.include_router(auth_router.router, tags=["인증"])
 app.include_router(pages_router.router, tags=["페이지"])
 app.include_router(jobs_router.router, tags=["작업"])
 app.include_router(settings_router.router, tags=["설정"])
+app.include_router(upload_router.router, tags=["업로드"])

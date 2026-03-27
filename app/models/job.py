@@ -35,6 +35,16 @@ class Job(Base):
     duration_sec = Column(Float, nullable=True)
     thumbnail_url = Column(String(500), nullable=True)
 
+    # 업로드 상태
+    upload_youtube = Column(String(50), default="none")  # none/uploading/done/error
+    upload_tiktok = Column(String(50), default="none")
+    upload_instagram = Column(String(50), default="none")
+
+    # 업로드 결과 URL
+    youtube_url = Column(String(500), nullable=True)
+    tiktok_url = Column(String(500), nullable=True)
+    instagram_url = Column(String(500), nullable=True)
+
     # 타임스탬프
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

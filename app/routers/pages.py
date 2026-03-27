@@ -77,6 +77,13 @@ async def job_detail(request: Request, job_id: int, db: AsyncSession = Depends(g
         "thumbnail_url": job.thumbnail_url,
         "duration_sec": job.duration_sec,
         "created_at": job.created_at.isoformat() if job.created_at else "",
+        # 업로드 상태
+        "upload_youtube": job.upload_youtube or "none",
+        "upload_tiktok": job.upload_tiktok or "none",
+        "upload_instagram": job.upload_instagram or "none",
+        "youtube_url": job.youtube_url or "",
+        "tiktok_url": job.tiktok_url or "",
+        "instagram_url": job.instagram_url or "",
     }
 
     return templates.TemplateResponse("job_detail.html", {
