@@ -55,18 +55,15 @@ async def _get_job_or_404(job_id: int, db: AsyncSession) -> Job:
 # ──────────────────────────── Pipeline ────────────────────────────
 
 async def _run_pipeline(job_id: int):
-    """백그라운드 파이프라인:
-    download → STT(중국어) → 번역 → 대본 재작성 → TTS(한국어) → 영상 합성
+    """백그라운드 파이프라인 (Gemini 3.1 Pro 영상 분석):
+    download → Gemini 영상 분석(1단계) → TTS → 영상 합성
     """
     import logging
     log = logging.getLogger(__name__)
 
     from app.services.extractor.douyin import download_douyin
-    from app.services.video.whisper_stt import transcribe
-    from app.services.translator.gpt_translator import translate_srt
-    from app.services.translator.script_rewriter import rewrite_script
+    from app.services.video_analyzer import analyze_video
     from app.services.video.tts import generate_tts, extract_text_from_srt
-    from app.services.video.renderer import burn_subtitles
 
     async with async_session() as db:
         result = await db.execute(select(Job).where(Job.id == job_id))
@@ -74,16 +71,17 @@ async def _run_pipeline(job_id: int):
         if not job:
             return
 
-        # API 키
-        api_key = ""
+        # Google API 키 (Gemini용)
+        google_key = ""
         key_result = await db.execute(
-            select(ApiKey).where(ApiKey.service == "openai", ApiKey.is_active == True)
+            select(ApiKey).where(ApiKey.service == "google", ApiKey.is_active == True)
         )
         key_row = key_result.scalar_one_or_none()
         if key_row:
-            api_key = key_row.api_key
-        elif settings.OPENAI_API_KEY:
-            api_key = settings.OPENAI_API_KEY
+            google_key = key_row.api_key
+
+        if not google_key:
+            google_key = os.environ.get("GOOGLE_API_KEY", "")
 
         job_dir = os.path.join(settings.DATA_DIR, "jobs", str(job_id))
         os.makedirs(job_dir, exist_ok=True)
@@ -105,57 +103,52 @@ async def _run_pipeline(job_id: int):
             job.duration_sec = dl_result.get("duration", 0)
             await db.commit()
 
-            # ── Step 2: 중국어 음성 → 자막 (STT) ──
-            if not api_key:
-                raise RuntimeError("OpenAI API 키가 설정되지 않았습니다.")
+            # ── Step 2: Gemini 영상 분석 (STT+번역+대본 한 번에) ──
+            if not google_key:
+                raise RuntimeError("Google API 키가 설정되지 않았습니다. 설정에서 등록하세요.")
 
-            job.status = "transcribing"
+            job.status = "transcribing"  # "분석 중"으로 표시
             await db.commit()
-            log.info(f"[Job {job_id}] Step 2: STT (중국어)")
+            log.info(f"[Job {job_id}] Step 2: Gemini 영상 분석")
 
-            srt_zh = await transcribe(job.video_path, api_key)
-            job.subtitle_zh = srt_zh
-            await db.commit()
-
-            # ── Step 3: 번역 (중→한 직역) ──
-            job.status = "translating"
-            await db.commit()
-            log.info(f"[Job {job_id}] Step 3: 번역")
-
-            srt_ko_raw = await translate_srt(srt_zh, api_key)
-            await db.commit()
-
-            # ── Step 4: 대본 재작성 (한국 시청자용) ──
-            log.info(f"[Job {job_id}] Step 4: 대본 재작성")
-
-            srt_ko = await rewrite_script(
-                translated_srt=srt_ko_raw,
-                api_key=api_key,
-                product_name=job.original_title or "",
+            analysis = await analyze_video(
+                video_path=job.video_path,
+                api_key=google_key,
                 coupang_link=job.coupang_affiliate_url or "",
             )
-            job.subtitle_ko = srt_ko
-            await db.commit()
 
-            # ── Step 5: 한국어 TTS 음성 생성 ──
+            # 분석 결과 저장
+            job.original_title = analysis.get("product_name") or job.original_title
+            job.subtitle_zh = analysis.get("original_text", "")
+            job.subtitle_ko = analysis.get("subtitle_srt", "")
+            job.translated_title = analysis.get("product_name", "")
+            job.translated_desc = analysis.get("summary", "")
+
+            # 대본 텍스트 (script_ko)를 별도 저장
+            script_ko = analysis.get("script_ko", "")
+            if not job.subtitle_ko and script_ko:
+                # SRT가 없으면 대본으로 간단한 SRT 생성
+                job.subtitle_ko = _text_to_simple_srt(script_ko, job.duration_sec or 60)
+
+            await db.commit()
+            log.info(f"[Job {job_id}] 분석 완료: {analysis.get('product_name','?')}")
+
+            # ── Step 3: TTS + 영상 합성 ──
             job.status = "rendering"
             await db.commit()
-            log.info(f"[Job {job_id}] Step 5: TTS + 렌더링")
+            log.info(f"[Job {job_id}] Step 3: TTS + 렌더링")
 
-            narration_text = extract_text_from_srt(srt_ko)
-            tts_result = await generate_tts(
-                text=narration_text,
-                output_dir=job_dir,
-                voice="sunhi",
-            )
+            # TTS 음성 생성
+            narration = script_ko or extract_text_from_srt(job.subtitle_ko)
+            tts_result = await generate_tts(text=narration, output_dir=job_dir, voice="sunhi")
             tts_audio = tts_result["audio_path"]
 
-            # ── Step 6: 최종 영상 합성 ──
-            # 원본 영상(음소거) + 한국어 TTS 음성 + 한국어 자막
+            # 자막 파일 저장
             srt_path = os.path.join(job_dir, "subtitle_ko.srt")
             with open(srt_path, "w", encoding="utf-8") as f:
-                f.write(srt_ko)
+                f.write(job.subtitle_ko)
 
+            # 최종 합성: 원본 영상(음소거) + TTS 음성 + 자막
             output_path = os.path.join(job_dir, "output.mp4")
             await _render_final(job.video_path, tts_audio, srt_path, output_path)
 
@@ -169,6 +162,29 @@ async def _run_pipeline(job_id: int):
             job.status = "error"
             job.error_msg = str(e)[:1000]
             await db.commit()
+
+
+def _text_to_simple_srt(text: str, total_duration: float) -> str:
+    """긴 텍스트를 간단한 SRT로 변환 (5초 단위)."""
+    import re
+    sentences = re.split(r'[.!?。！？\n]+', text)
+    sentences = [s.strip() for s in sentences if s.strip()]
+    if not sentences:
+        return ""
+
+    interval = total_duration / len(sentences)
+    srt_lines = []
+    for i, sent in enumerate(sentences):
+        start = i * interval
+        end = min((i + 1) * interval, total_duration)
+        sh, sm, ss = int(start // 3600), int((start % 3600) // 60), start % 60
+        eh, em, es = int(end // 3600), int((end % 3600) // 60), end % 60
+        srt_lines.append(f"{i+1}")
+        srt_lines.append(f"{sh:02d}:{sm:02d}:{ss:06.3f} --> {eh:02d}:{em:02d}:{es:06.3f}".replace(".", ","))
+        srt_lines.append(sent)
+        srt_lines.append("")
+
+    return "\n".join(srt_lines)
 
 
 async def _render_final(video_path: str, audio_path: str, srt_path: str, output_path: str):

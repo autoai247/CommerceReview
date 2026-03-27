@@ -15,8 +15,9 @@ sqlalchemy==2.0.35
 # Video download (Douyin, Xiaohongshu, 1688)
 yt-dlp>=2024.12.0
 
-# Speech-to-text / Translation
+# AI (Gemini 영상 분석 + OpenAI Whisper fallback)
 openai>=1.50.0
+google-generativeai==0.8.0
 
 # Browser automation — playwright는 추후 Dockerfile에서 별도 설치
 # playwright==1.49.0
