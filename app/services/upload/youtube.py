@@ -219,4 +219,54 @@ async def upload_to_youtube(
     url = f"https://youtu.be/{video_id}"
     log.info(f"YouTube 업로드 완료: {url}")
 
-    return {"video_id": video_id, "url": url}
+    return {"video_id": video_id, "url": url, "access_token": access_token}
+
+
+async def post_pinned_comment(
+    video_id: str,
+    comment_text: str,
+    access_token: str,
+) -> dict:
+    """유튜브 영상에 고정 댓글 작성.
+
+    Args:
+        video_id: 유튜브 영상 ID
+        comment_text: 댓글 내용 (프로필 링크 안내 등)
+        access_token: OAuth2 access token
+
+    Returns:
+        {"comment_id": str}
+    """
+    # 1. 댓글 작성
+    url = f"{YOUTUBE_API_BASE}/youtube/v3/commentThreads"
+    params = {"part": "snippet"}
+    body = {
+        "snippet": {
+            "videoId": video_id,
+            "topLevelComment": {
+                "snippet": {
+                    "textOriginal": comment_text,
+                }
+            }
+        }
+    }
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.post(
+            url,
+            params=params,
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json",
+            },
+            json=body,
+        )
+
+    if resp.status_code not in (200, 201):
+        log.warning(f"YouTube 댓글 작성 실패 (HTTP {resp.status_code}): {resp.text[:300]}")
+        return {"comment_id": "", "error": resp.text[:300]}
+
+    data = resp.json()
+    comment_id = data.get("id", "")
+    log.info(f"YouTube 댓글 작성 완료: {comment_id}")
+    return {"comment_id": comment_id}

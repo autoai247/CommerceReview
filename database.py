@@ -36,6 +36,8 @@ async def _auto_migrate():
         ("jobs", "youtube_url", "VARCHAR(500)"),
         ("jobs", "tiktok_url", "VARCHAR(500)"),
         ("jobs", "instagram_url", "VARCHAR(500)"),
+        ("jobs", "coupang_product_id", "VARCHAR(100)"),
+        ("jobs", "coupang_affiliate_url", "VARCHAR(500)"),
     ]
 
     async with engine.begin() as conn:

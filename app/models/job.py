@@ -45,6 +45,10 @@ class Job(Base):
     tiktok_url = Column(String(500), nullable=True)
     instagram_url = Column(String(500), nullable=True)
 
+    # 쿠팡 파트너스
+    coupang_product_id = Column(String(100), nullable=True)
+    coupang_affiliate_url = Column(String(500), nullable=True)
+
     # 타임스탬프
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

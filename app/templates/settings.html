@@ -129,6 +129,57 @@
         <div id="tiktokResult" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
     </div>
 
+    <!-- Coupang Partners -->
+    <div class="bg-gray-900 border border-gray-800/50 rounded-2xl p-8 mb-6">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-orange-500"></span>
+            쿠팡 파트너스
+        </h2>
+        <form id="coupangForm">
+            <div class="mb-4">
+                <label for="cpg_access_key" class="block text-sm font-medium text-gray-300 mb-2">ACCESS KEY</label>
+                <div class="relative">
+                    <input type="password" id="cpg_access_key" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                           class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition pr-12">
+                    <button type="button" onclick="togglePassword(this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="mb-4">
+                <label for="cpg_secret_key" class="block text-sm font-medium text-gray-300 mb-2">SECRET KEY</label>
+                <div class="relative">
+                    <input type="password" id="cpg_secret_key" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                           class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition pr-12">
+                    <button type="button" onclick="togglePassword(this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                    </button>
+                </div>
+                <p class="mt-2 text-xs text-gray-500">쿠팡 파트너스 (partners.coupang.com)에서 API 키를 발급받으세요. 상품 링크에 어필리에이트 코드가 자동 포함됩니다.</p>
+            </div>
+            <div class="flex gap-3">
+                <button type="submit"
+                        class="flex-1 py-3 px-4 bg-orange-600 hover:bg-orange-500 text-white font-semibold rounded-xl transition-colors">
+                    쿠팡 인증 정보 저장
+                </button>
+                <button type="button" onclick="testCoupangConnection()"
+                        class="px-6 py-3 bg-gray-800 hover:bg-gray-700 text-gray-300 font-medium rounded-xl transition-colors flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    연결 테스트
+                </button>
+            </div>
+        </form>
+        <div id="coupangResult" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+    </div>
+
     <!-- Instagram -->
     <div class="bg-gray-900 border border-gray-800/50 rounded-2xl p-8 mb-6">
         <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
@@ -286,6 +337,52 @@
         }
         await savePlatformKey('tiktok', token, 'tiktokResult');
     });
+
+    // Coupang form
+    document.getElementById('coupangForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const accessKey = document.getElementById('cpg_access_key').value.trim();
+        const secretKey = document.getElementById('cpg_secret_key').value.trim();
+
+        if (!accessKey || !secretKey) {
+            showResult('ACCESS KEY와 SECRET KEY를 모두 입력해주세요.', 'error', 'coupangResult');
+            return;
+        }
+
+        const creds = JSON.stringify({
+            access_key: accessKey,
+            secret_key: secretKey
+        });
+        await savePlatformKey('coupang', creds, 'coupangResult');
+    });
+
+    async function testCoupangConnection() {
+        const accessKey = document.getElementById('cpg_access_key').value.trim();
+        const secretKey = document.getElementById('cpg_secret_key').value.trim();
+
+        if (!accessKey || !secretKey) {
+            showResult('ACCESS KEY와 SECRET KEY를 먼저 입력해주세요.', 'error', 'coupangResult');
+            return;
+        }
+
+        // 먼저 저장
+        const creds = JSON.stringify({ access_key: accessKey, secret_key: secretKey });
+        await savePlatformKey('coupang', creds, 'coupangResult');
+
+        showResult('연결 테스트 중...', 'info', 'coupangResult');
+
+        try {
+            const resp = await fetch('/api/coupang/test', { method: 'POST' });
+            const data = await resp.json();
+            if (resp.ok && data.ok) {
+                showResult(data.message || '쿠팡 파트너스 API 연결 성공!', 'success', 'coupangResult');
+            } else {
+                showResult(data.detail || '쿠팡 API 연결에 실패했습니다.', 'error', 'coupangResult');
+            }
+        } catch (e) {
+            showResult('네트워크 오류', 'error', 'coupangResult');
+        }
+    }
 
     // Instagram form
     document.getElementById('instagramForm').addEventListener('submit', async (e) => {

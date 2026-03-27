@@ -52,13 +52,27 @@ def _build_title(job: Job) -> str:
     return job.translated_title or job.original_title or f"CommerceReview #{job.id}"
 
 
+def _build_pinned_comment(job: Job) -> str:
+    """업로드 후 자동 댓글 — 프로필 링크 & 쿠팡 구매 링크 안내."""
+    lines = []
+    if job.coupang_affiliate_url:
+        lines.append(f"구매 링크: {job.coupang_affiliate_url}")
+    lines.append("더 많은 리뷰는 프로필 링크에서 확인하세요!")
+    return "\n".join(lines) if lines else ""
+
+
 def _build_description(job: Job) -> str:
-    """작업 정보로 기본 설명 생성."""
+    """작업 정보로 기본 설명 생성. 쿠팡 어필리에이트 링크가 있으면 자동 포함."""
     parts = []
     if job.translated_desc:
         parts.append(job.translated_desc)
     elif job.original_desc:
         parts.append(job.original_desc)
+
+    # 쿠팡 파트너스 어필리에이트 링크 자동 추가
+    if job.coupang_affiliate_url:
+        parts.append(f"구매 링크: {job.coupang_affiliate_url}")
+
     parts.append("\n#CommerceReview #커머스리뷰")
     return "\n\n".join(parts)
 
@@ -95,6 +109,15 @@ async def _bg_upload_youtube(job_id: int, title: str, description: str, tags: li
             job.upload_youtube = "done"
             job.youtube_url = result_data.get("url", "")
             await db.commit()
+
+            # 자동 고정 댓글 — 프로필 링크 & 쿠팡 링크 안내
+            video_id = result_data.get("video_id", "")
+            access_token = result_data.get("access_token", "")
+            if video_id and access_token:
+                comment = _build_pinned_comment(job)
+                if comment:
+                    from app.services.upload.youtube import post_pinned_comment
+                    await post_pinned_comment(video_id, comment, access_token)
 
         except Exception as e:
             log.error(f"YouTube 업로드 실패 (job {job_id}): {e}")
@@ -182,6 +205,14 @@ async def _bg_upload_instagram(job_id: int, caption: str, request_base_url: str)
             job.upload_instagram = "done"
             job.instagram_url = result_data.get("url", "")
             await db.commit()
+
+            # 자동 댓글 — 프로필 링크 안내
+            media_id = result_data.get("media_id", "")
+            if media_id and access_token:
+                comment = _build_pinned_comment(job)
+                if comment:
+                    from app.services.upload.instagram import post_comment
+                    await post_comment(media_id, comment, access_token)
 
         except Exception as e:
             log.error(f"Instagram 업로드 실패 (job {job_id}): {e}")

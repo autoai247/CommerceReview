@@ -214,3 +214,31 @@ async def upload_to_instagram(
         "media_id": media_id,
         "url": permalink or f"https://www.instagram.com/reel/{media_id}/",
     }
+
+
+async def post_comment(
+    media_id: str,
+    comment_text: str,
+    access_token: str,
+) -> dict:
+    """인스타그램 게시물에 댓글 작성 (프로필 링크 안내 등).
+
+    Returns:
+        {"comment_id": str}
+    """
+    url = f"{GRAPH_API_BASE}/{media_id}/comments"
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.post(url, data={
+            "message": comment_text,
+            "access_token": access_token,
+        })
+
+    if resp.status_code not in (200, 201):
+        log.warning(f"Instagram 댓글 작성 실패 (HTTP {resp.status_code}): {resp.text[:300]}")
+        return {"comment_id": "", "error": resp.text[:300]}
+
+    data = resp.json()
+    comment_id = data.get("id", "")
+    log.info(f"Instagram 댓글 작성 완료: {comment_id}")
+    return {"comment_id": comment_id}

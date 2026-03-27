@@ -67,8 +67,8 @@ async def save_platform_key(data: PlatformKeyPayload, db: AsyncSession = Depends
     service = data.service.strip().lower()
     key_value = data.api_key.strip()
 
-    if service not in ("youtube", "tiktok", "instagram"):
-        raise HTTPException(status_code=400, detail="지원하지 않는 서비스입니다. (youtube, tiktok, instagram)")
+    if service not in ("youtube", "tiktok", "instagram", "coupang"):
+        raise HTTPException(status_code=400, detail="지원하지 않는 서비스입니다. (youtube, tiktok, instagram, coupang)")
 
     if not key_value:
         raise HTTPException(status_code=400, detail="인증 정보를 입력해주세요.")
